@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Positional Encoding in Transformers</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-light: #1c2129;
+    --border: #2a2f3d;
+    --text: #e6edf3;
+    --muted: #9aa0b4;
+    --accent: #ff6b57;
+    --accent2: #58a6ff;
+    --accent3: #3fb950;
+    --gold: #e3b341;
+    --code-bg: #010409;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+  }
+  .page {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 24px 100px;
+  }
+
+  /* ---- top header ---- */
+  .masthead {
+    text-align: center;
+    margin-bottom: 36px;
+  }
+  .masthead .kicker {
+    color: var(--gold);
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-size: 12px;
+  }
+  .masthead h1 {
+    font-size: 2rem;
+    margin: 10px 0 6px;
+  }
+  .masthead p {
+    color: var(--muted);
+    max-width: 600px;
+    margin: 0 auto;
+    font-size: 1rem;
+  }
+
+  /* ---- tabs ---- */
+  .tabs {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    gap: 6px;
+    background: var(--bg);
+    padding: 18px 0 22px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 40px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .tab-btn {
+    appearance: none;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--muted);
+    padding: 10px 18px;
+    border-radius: 999px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-family: inherit;
+  }
+  .tab-btn:hover {
+    border-color: var(--accent2);
+    color: var(--text);
+  }
+  .tab-btn.active {
+    background: var(--accent2);
+    border-color: var(--accent2);
+    color: #04121f;
+  }
+  .tab-btn .n {
+    opacity: 0.7;
+    margin-right: 6px;
+  }
+
+  .panel { display: none; animation: fade 0.25s ease; }
+  .panel.active { display: block; }
+  @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ================= TAB 1: explainer ================= */
+  #tab1 .step {
+    display: grid;
+    grid-template-columns: 40px 1fr;
+    gap: 16px;
+    margin-bottom: 8px;
+  }
+  #tab1 .step .num {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: var(--accent2);
+    color: #04121f;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+  }
+  #tab1 section.block {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 26px 26px 22px;
+    margin: 0 0 24px 56px;
+  }
+  #tab1 section.block h2 { margin-top: 0; font-size: 1.2rem; }
+  #tab1 section.block p { color: #d3d5e0; }
+  #tab1 .why {
+    margin-top: 12px;
+    padding: 12px 16px;
+    background: rgba(255,107,87,0.08);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    color: var(--muted);
+    font-size: 0.92rem;
+  }
+  #tab1 code, #tab1 .formula {
+    font-family: "SF Mono", "Fira Code", Consolas, monospace;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    padding: 2px 7px;
+    border-radius: 5px;
+    font-size: 0.9em;
+    color: var(--gold);
+  }
+  #tab1 .formula-block {
+    font-family: "SF Mono", "Fira Code", Consolas, monospace;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin: 14px 0;
+    color: var(--gold);
+    font-size: 0.92rem;
+    overflow-x: auto;
+  }
+  #tab1 .tag {
+    display: inline-block;
+    font-size: 0.72rem;
+    color: var(--accent2);
+    border: 1px solid var(--accent2);
+    border-radius: 999px;
+    padding: 2px 10px;
+    margin-bottom: 10px;
+  }
+
+  /* ================= TAB 2: story ================= */
+  #tab2 {
+    font-family: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+  }
+  #tab2 .ornament {
+    text-align: center;
+    color: var(--gold);
+    font-size: 1.3rem;
+    margin: 30px 0;
+    letter-spacing: 0.5em;
+  }
+  #tab2 section.scene {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 30px 32px;
+    margin-bottom: 24px;
+  }
+  #tab2 section.scene h2 {
+    margin-top: 0;
+    font-size: 1.3rem;
+    color: #ffa27a;
+    font-weight: normal;
+    font-style: italic;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 10px;
+  }
+  #tab2 section.scene p { font-size: 1.05rem; color: #dfe3ea; }
+  #tab2 .moral {
+    margin-top: 16px;
+    padding: 13px 17px;
+    background: rgba(227,179,65,0.08);
+    border-left: 3px solid var(--gold);
+    font-family: -apple-system, sans-serif;
+    font-size: 0.9rem;
+    color: var(--muted);
+    border-radius: 4px;
+  }
+  #tab2 .moral strong { color: var(--accent3); }
+  #tab2 em.char { color: #7ee0c7; font-style: italic; }
+
+  /* ================= TAB 3: map ================= */
+  #tab3 .flow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin: 6px 0 40px;
+    font-size: 0.85rem;
+  }
+  #tab3 .flow .node {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 14px;
+    white-space: nowrap;
+  }
+  #tab3 .flow .arrow { color: var(--muted); }
+  #tab3 .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 18px;
+    margin-bottom: 20px;
+  }
+  #tab3 .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 22px 20px 18px;
+    position: relative;
+  }
+  #tab3 .card .stage {
+    position: absolute;
+    top: -12px; left: 18px;
+    background: var(--accent2);
+    color: #04121f;
+    font-weight: 700;
+    font-size: 0.7rem;
+    padding: 3px 10px;
+    border-radius: 999px;
+  }
+  #tab3 .card h3 { margin-top: 8px; margin-bottom: 8px; font-size: 1rem; }
+  #tab3 .card p { color: #c4cad4; font-size: 0.9rem; margin-bottom: 0; }
+  #tab3 .card .ref { margin-top: 10px; font-size: 0.76rem; color: var(--muted); font-style: italic; }
+  #tab3 .divider {
+    display: flex; align-items: center; gap: 12px;
+    margin: 40px 0 18px;
+  }
+  #tab3 .divider hr { flex: 1; border: none; border-top: 1px solid var(--border); }
+  #tab3 .divider span {
+    color: var(--accent);
+    font-size: 0.78rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  #tab3 table {
+    width: 100%; border-collapse: collapse;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    font-size: 0.86rem;
+  }
+  #tab3 th, #tab3 td { padding: 11px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+  #tab3 th { background: var(--panel-light); color: var(--accent2); font-weight: 600; }
+  #tab3 tr:last-child td { border-bottom: none; }
+  #tab3 td.good { color: var(--accent3); }
+  #tab3 td.bad { color: #f85149; }
+
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.82rem;
+    margin-top: 48px;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="masthead">
+    <div class="kicker">Understanding Transformers</div>
+    <h1>Positional Encoding, Three Ways</h1>
+    <p>The same idea explained as a technical walkthrough, a story, and a visual map — pick your tab.</p>
+  </div>
+
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="tab2"><span class="n">01</span>The Story</button>
+    <button class="tab-btn" data-tab="tab3"><span class="n">02</span>Study Map</button>
+    <button class="tab-btn" data-tab="tab1"><span class="n">03</span>Technical Walkthrough</button>
+  </nav>
+
+  <!-- ============ TAB 1 ============ -->
+  <div class="panel" id="tab1">
+
+    <div class="step"><div class="num">1</div></div>
+    <section class="block">
+      <span class="tag">The Problem</span>
+      <h2>Attention is order-blind</h2>
+      <p>Self-attention computes a weighted sum over all tokens using queries, keys and values: <span class="formula">S = softmax(QKᵀ / √d_k)</span>, then <span class="formula">output = S·V</span>. Nothing in that computation depends on where a token sits in the sequence — swap two words and the attention math produces the same result, just relabeled.</p>
+      <p>That's fine for a "bag of words," but language depends on order. "John likes coffee, he went to the cafe" and a scrambled version of it are not the same sentence. The model needs a signal that tells it <em>where</em> each token is, not just <em>what</em> it is.</p>
+      <div class="why">Why it matters: without positional information, "the dog bit the man" and "the man bit the dog" would look identical to attention.</div>
+    </section>
+
+    <div class="step"><div class="num">2</div></div>
+    <section class="block">
+      <span class="tag">The Classic Fix</span>
+      <h2>Add a positional vector to the token embedding</h2>
+      <p>The original Transformer's answer: give every position its own vector, and add it directly to the token's embedding before anything else happens. <span class="formula">input = token embedding + positional embedding</span>. The combined vector then carries both "what" and "where" into the rest of the network.</p>
+      <p>The positional vectors themselves come from sine and cosine functions at different frequencies:</p>
+      <div class="formula-block">
+PE(pos, 2i)   = sin(pos / n^(2i/d))<br>
+PE(pos, 2i+1) = cos(pos / n^(2i/d))
+      </div>
+      <p>Here <code>pos</code> is the token's position in the sequence, <code>i</code> indexes the embedding dimension pair, <code>d</code> is the total embedding dimension, and <code>n</code> is a large constant (typically 10,000). Even dimensions get a sine, odd dimensions get a cosine, each at a different frequency.</p>
+      <div class="why">Why sine and cosine: they're bounded, smooth, and — crucially — the encoding for one position can be expressed as a linear function of any other, giving the model an easy way to learn relative offsets.</div>
+    </section>
+
+    <div class="step"><div class="num">3</div></div>
+    <section class="block">
+      <span class="tag">Worked Example</span>
+      <h2>What the numbers actually look like</h2>
+      <p>For a toy case with <code>d=4</code>, <code>n=100</code>, and the sentence "I am a robot," each row is a position and each column is computed from the formula above. Position 0 always starts at <code>sin(0)=0</code>, <code>cos(0)=1</code>. As position increases, the low-frequency dimensions change slowly, while high-frequency dimensions oscillate faster.</p>
+      <p>That mix of frequencies is the trick: some dimensions distinguish neighboring positions, others distinguish far-apart ones, so the model gets a fine-grained and coarse-grained sense of distance in a single vector.</p>
+      <div class="why">Why it generalizes: because it's a formula and not a lookup table, the model can compute encodings for sequence lengths longer than anything seen in training.</div>
+    </section>
+
+    <div class="step"><div class="num">4</div></div>
+    <section class="block">
+      <span class="tag">The Limitation</span>
+      <h2>Additive encodings blur into the residual stream</h2>
+      <p>Adding position to content mixes the two signals together permanently at the input. As that combined vector travels through many layers of attention and feed-forward blocks, the clean separation between "what" and "where" degrades — and the relative-position math the sinusoids were designed to support turns out weaker in practice, especially at long distances.</p>
+      <div class="why">This is the gap that motivated newer approaches — encode position where attention actually uses it: inside the query/key dot product, not before it.</div>
+    </section>
+
+    <div class="step"><div class="num">5</div></div>
+    <section class="block">
+      <span class="tag">The Modern Fix</span>
+      <h2>RoPE: rotate instead of add</h2>
+      <p>Rotary Positional Encoding takes a different approach entirely: instead of adding a position vector to the embedding, it <em>rotates</em> the query and key vectors by an angle proportional to their position, treating pairs of dimensions as points on a 2D plane.</p>
+      <p>A query at position <code>u</code> gets rotated by angle <code>uθ</code>; a key at position <code>u+k</code> gets rotated by <code>(u+k)θ</code>. When the attention dot product <code>QKᵀ</code> is computed, the rotations combine such that the result depends only on the <em>relative</em> distance <code>k</code> — not on absolute positions.</p>
+      <div class="why">Why this is better: relative position is encoded directly into the attention score itself, it decays naturally with distance, and it extrapolates to longer sequences far more gracefully than additive sinusoidal encoding.</div>
+    </section>
+
+    <div class="step"><div class="num">6</div></div>
+    <section class="block">
+      <span class="tag">Where It Lives</span>
+      <h2>Back to the architecture diagram</h2>
+      <p>In the original Transformer diagram, "Positional Encoding" is one small addition block feeding into the encoder and decoder stacks — easy to skim past. RoPE relocates that job: instead of a one-time addition at the bottom, position gets baked into every attention layer's Q and K vectors, every time attention is computed.</p>
+      <p>That's the arc: attention has no order → add sinusoidal position vectors → limitations show up at scale and long context → rotate Q/K instead of adding, so relative position lives inside attention itself. RoPE is what most modern large language models use today.</p>
+    </section>
+
+  </div>
+
+  <!-- ============ TAB 2 ============ -->
+  <div class="panel active" id="tab2">
+
+    <section class="scene">
+      <h2>I. The Room With No Order</h2>
+      <p>Picture a room full of words, each one glowing with meaning. <em class="char">John</em> stands near <em class="char">likes</em>, who stands near <em class="char">coffee</em>. Then, across the room, <em class="char">He</em> stands near <em class="char">went</em> and <em class="char">cafe</em>. Every word can see every other word perfectly — that's the gift of attention. Each one reaches out, measures how relevant every other word is, and draws in what it needs.</p>
+      <p>But there's a problem. The room has no floor markings. No first place, no last place. If you shuffled every word into a different order, the room would look exactly the same to them. <em class="char">"The dog bit the man"</em> and <em class="char">"the man bit the dog"</em> would feel identical — same words, same glow, same connections. Meaning was scrambling itself, and nobody in the room could tell.</p>
+      <div class="moral"><strong>The lesson:</strong> attention alone has no memory of sequence — it treats a sentence like a bag of words spilled onto a table.</div>
+    </section>
+
+    <div class="ornament">✦ ✦ ✦</div>
+
+    <section class="scene">
+      <h2>II. The Clockmaker's Gift</h2>
+      <p>So a clockmaker arrived, and gave every word a small wristwatch before it entered the room. Watch number 0 for the first word, watch number 1 for the second, and so on — each watch ticking at its own private mix of speeds, fast hands and slow hands sharing the same face. A word's watch didn't say anything about meaning; it only ever whispered <em>"you are here, this many steps from the start."</em></p>
+      <p>The words wore their watches stitched onto their sleeves, fused into their very glow, so that "position" and "meaning" became inseparable the moment they walked in. Now, even scrambled, each word carried proof of where it belonged.</p>
+      <div class="moral"><strong>The lesson:</strong> sinusoidal positional encoding adds a fixed, formula-built signal — built from sine and cosine waves of different frequencies — directly onto each word's embedding, so position becomes part of its identity before attention ever begins.</div>
+    </section>
+
+    <div class="ornament">✦ ✦ ✦</div>
+
+    <section class="scene">
+      <h2>III. The Watches Grew Faint</h2>
+      <p>The system worked — for a while. But the room was tall, with many floors, and as each word climbed from floor to floor, layer after layer, its watch got jostled and blended with everyone else's glow. By the top floor, the ticking was still there, technically, but faint — muddled into the meaning it was fused to. Words far apart from each other in the room struggled to remember, precisely, how far apart they truly were.</p>
+      <div class="moral"><strong>The lesson:</strong> because the positional signal is added once and then carried passively through many layers, it degrades — long-range relative position becomes harder for the model to recover cleanly.</div>
+    </section>
+
+    <div class="ornament">✦ ✦ ✦</div>
+
+    <section class="scene">
+      <h2>IV. The Dancers Who Rotated Instead</h2>
+      <p>A new idea arrived — not a watch to wear, but a dance to perform. Each word, right at the moment it reached out to measure another (the very instant of <em class="char">query meets key</em>), would spin in place — rotate by an angle that grew with its position. Word 3 turned a little; word 30 turned much further.</p>
+      <p>Here was the trick: when two dancers compared their spins mid-reach, the maths cancelled out their absolute positions entirely, and left behind only the <em>angle between them</em> — how far apart they were, relatively, regardless of where the dance began. Two words three steps apart always produced the same relative spin, whether they were words 3-and-6 or words 300-and-303.</p>
+      <div class="moral"><strong>The lesson:</strong> this is RoPE — Rotary Positional Encoding. Instead of adding position to meaning, it rotates the query and key vectors by an angle proportional to position, so relative distance is baked directly into the attention calculation itself, not diluted by the layers above it.</div>
+    </section>
+
+    <div class="ornament">✦ ✦ ✦</div>
+
+    <section class="scene">
+      <h2>V. The Room, Remade</h2>
+      <p>Today's largest rooms — the ones built by the biggest language models — use the dancers, not the watches. Position isn't stitched onto a word's sleeve and hoped to survive the climb; it's re-enacted, fresh, every single time one word reaches for another. The room finally has a floor. Order survived the climb to the top.</p>
+    </section>
+
+  </div>
+
+  <!-- ============ TAB 3 ============ -->
+  <div class="panel" id="tab3">
+
+    <div class="flow">
+      <div class="node">Token embedding</div>
+      <span class="arrow">→</span>
+      <div class="node">+ Positional encoding</div>
+      <span class="arrow">→</span>
+      <div class="node">Q, K, V projections</div>
+      <span class="arrow">→</span>
+      <div class="node">Attention (QKᵀ/√d)</div>
+      <span class="arrow">→</span>
+      <div class="node">Contextual embeddings</div>
+      <span class="arrow">→</span>
+      <div class="node">Transformer stack</div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="stage">01</div>
+        <h3>Tokenize & embed</h3>
+        <p>Text is split into tokens, each mapped to an ID, then to a learned embedding vector. This carries "what" the token is — nothing about "where" yet.</p>
+        <div class="ref">Ref: Tokenized text → Token ID → Embedding diagram</div>
+      </div>
+      <div class="card">
+        <div class="stage">02</div>
+        <h3>Compute positional vectors</h3>
+        <p>A separate position model produces one vector per index (0, 1, 2, 3…) using <code>sin(pos/n^(2i/d))</code> and <code>cos(pos/n^(2i/d))</code> across the embedding dimensions.</p>
+        <div class="ref">Ref: "I am a robot" worked table, d=100 tables</div>
+      </div>
+      <div class="card">
+        <div class="stage">03</div>
+        <h3>Add position to content</h3>
+        <p>Token embedding + positional embedding are summed elementwise, producing one vector that now encodes both identity and sequence order.</p>
+        <div class="ref">Ref: Embedding model + Positional encoding model → "+" → Transformers</div>
+      </div>
+      <div class="card">
+        <div class="stage">04</div>
+        <h3>Feed into the Transformer</h3>
+        <p>The combined vectors enter the encoder/decoder stack — multi-head attention, add & norm, feed-forward — repeated N times.</p>
+        <div class="ref">Ref: Full encoder-decoder architecture diagram (RoPE arrow)</div>
+      </div>
+      <div class="card">
+        <div class="stage">05</div>
+        <h3>Attention needs Q, K, V</h3>
+        <p>Inside each attention layer, the input is projected into Queries, Keys and Values via learned weight matrices, then combined as <code>softmax(QKᵀ/√d_k)·V</code>.</p>
+        <div class="ref">Ref: "Cat / Likes / Pizza" attention weight diagram</div>
+      </div>
+      <div class="card">
+        <div class="stage">06</div>
+        <h3>The upgrade: rotate, don't add</h3>
+        <p>RoPE moves position out of the input-embedding stage and into the Q/K projection itself — rotating each vector by an angle proportional to position, so relative distance falls out of the dot product naturally.</p>
+        <div class="ref">Ref: Rotary Encoding diagram — W_q, W_k rotation</div>
+      </div>
+    </div>
+
+    <div class="divider"><hr><span>Comparison</span><hr></div>
+
+    <table>
+      <tr><th>Property</th><th>Sinusoidal PE (additive)</th><th>RoPE (rotary)</th></tr>
+      <tr><td>Where position is applied</td><td>Once, at the input embedding</td><td>Every layer, inside Q/K</td></tr>
+      <tr><td>Encodes</td><td>Absolute position</td><td class="good">Relative position, directly</td></tr>
+      <tr><td>Survives depth well</td><td class="bad">Degrades across layers</td><td class="good">Re-applied every layer</td></tr>
+      <tr><td>Long-context extrapolation</td><td class="bad">Weaker</td><td class="good">Stronger</td></tr>
+      <tr><td>Used by</td><td>Original 2017 Transformer</td><td class="good">Most modern LLMs</td></tr>
+    </table>
+
+  </div>
+
+  <footer>Explainer · Story · Study Map — one page, three ways in · Made with Claude</footer>
+
+</div>
+
+<script>
+  const buttons = document.querySelectorAll('.tab-btn');
+  const panels = document.querySelectorAll('.panel');
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const target = btn.dataset.tab;
+      buttons.forEach(b => b.classList.remove('active'));
+      panels.forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(target).classList.add('active');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  });
+</script>
+
+</body>
+</html>
